@@ -64,20 +64,21 @@ pipeline {
             when {branch 'develop'}
             steps {
                 script{
-                //sh 'echo " deploy to dev coming soon"'
-                updateGitOps('dev','todo-backend', IMAGE_TAG)
+                    
+                    updateGitOps('dev','todo-backend', IMAGE_TAG)
                 }
 
             
+            }
         }
         stage('Deploy to stage'){
             when {branch 'staging'}
             steps {
                 script {
-                    //promotSameImagesDockerHub('staging')
-                    def devImageTag = getCurrentImageTag('dev','todo-backend')
-                    promotSameImagesDockerHub('staging', devImageTag)
-                    updateGitOps('staging','todo-backend', devImageTag)
+                        //promotSameImagesDockerHub('staging')
+                        def devImageTag = getCurrentImageTag('dev','todo-backend')
+                        promotSameImagesDockerHub('staging', devImageTag)
+                        updateGitOps('staging','todo-backend', devImageTag)
                     }
                 }
         }
@@ -96,6 +97,7 @@ pipeline {
     }
 
 }
+
 def promotSameImagesDockerHub(String environment,String devImageTag) {
     withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
         sh """
