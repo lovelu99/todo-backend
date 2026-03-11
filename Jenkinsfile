@@ -138,13 +138,13 @@ def updateGitOps(String environment, String service, String imageTag) {
             git config user.name "Jenkins CI"
 
             echo "Current directory: \$(pwd)"
-            cd '${environment}/${service}'
+            cd 'overlays/${environment}/${service}'
 
             
             sed -i "/name: noakhali\\/${service}/,/newTag:/ s/newTag:.*/newTag: ${imageTag}/" kustomization.yaml
 
 
-            cd ../..
+            cd ../../..
 
             git add 'overlays/${environment}/${service}/kustomization.yaml'
 
