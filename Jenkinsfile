@@ -138,7 +138,7 @@ def updateGitOps(String environment, String service, String imageTag) {
             git config user.name "Jenkins CI"
 
             echo "Current directory: \$(pwd)"
-            cd 'overlays/${environment}/${service}'
+            cd '${environment}/${service}'
 
             
             sed -i "/name: noakhali\\/${service}/,/newTag:/ s/newTag:.*/newTag: ${imageTag}/" kustomization.yaml
@@ -146,7 +146,7 @@ def updateGitOps(String environment, String service, String imageTag) {
 
             cd ../..
 
-            git add 'overlays/${environment}/kustomization.yaml'
+            git add 'overlays/${environment}/${service}/kustomization.yaml'
 
             if git diff --cached --quiet; then
               echo "No changes to commit"
