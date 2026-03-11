@@ -130,7 +130,7 @@ def updateGitOps(String environment, String service, String imageTag) {
             set -e
 
             rm -rf '${GITOPS_DIR}'
-            git clone "https://\$GIT_USER:\$GIT_PASS@github.com/lovelu99/todos-gitops-repo.git" '${GITOPS_DIR}'
+            git clone "https://\$GIT_USER:\$GIT_PASS@github.com/lovelu99/todo-gitops-repo.git" '${GITOPS_DIR}'
 
             cd '${GITOPS_DIR}'
 
@@ -138,7 +138,7 @@ def updateGitOps(String environment, String service, String imageTag) {
             git config user.name "Jenkins CI"
 
             echo "Current directory: \$(pwd)"
-            cd 'overlays/${environment}'
+            cd 'overlays/${environment}/${service}'
 
             
             sed -i "/name: noakhali\\/${service}/,/newTag:/ s/newTag:.*/newTag: ${imageTag}/" kustomization.yaml
@@ -152,7 +152,7 @@ def updateGitOps(String environment, String service, String imageTag) {
               echo "No changes to commit"
             else
               git commit -m 'ci: update ${environment}/${service} to ${imageTag} [skip ci]'
-              git push "https://\$GIT_USER:\$GIT_PASS@github.com/lovelu99/todos-gitops-repo.git" main
+              git push "https://\$GIT_USER:\$GIT_PASS@github.com/lovelu99/todo-gitops-repo.git" main
             fi
 
             cd ..
@@ -175,9 +175,9 @@ def getCurrentImageTag(String environment, String service) {
 
                     rm -rf '${GITOPS_DIR}'
 
-                    git clone "https://\$GIT_USER:\$GIT_PASS@github.com/lovelu99/todos-gitops-repo.git" '${GITOPS_DIR}'
+                    git clone "https://\$GIT_USER:\$GIT_PASS@github.com/lovelu99/todo-gitops-repo.git" '${GITOPS_DIR}'
 
-                    grep -A1 'name: noakhali/${service}' '${GITOPS_DIR}/overlays/${environment}/kustomization.yaml' \\
+                    grep -A1 'name: noakhali/${service}' '${GITOPS_DIR}/overlays/${environment}/${service}/kustomization.yaml' \\
                         | grep 'newTag' \\
                         | awk '{print \$2}'
                 """,
