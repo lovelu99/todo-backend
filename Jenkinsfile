@@ -10,41 +10,30 @@ pipeline {
     }
      stages {
 
-    //     stage('Set Variables'){
-    //         steps {
-    //             script {
-    //                 env.IMAGE_TAG  = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
-    //                 // env.sourceSHA = sh(
-    //                 //         script: 'git rev-parse --short=7 HEAD^2 2>/dev/null || git rev-parse --short=7 HEAD',
-    //                 //         returnStdout: true
-    //                 //     ).trim()
-    //             }
-    //         }
-    //     }
 
-        // stage('SonarQube Analysis') {
-        //     steps {
-        //             script {
-        //             def scannerHome = tool 'sonarscanner'
-        //             withSonarQubeEnv('sonarqube') {                   
-        //             sh """
-        //                 ${scannerHome}/bin/sonar-scanner \
-        //                 -Dsonar.projectKey=todo-backend \
-        //                 -Dsonar.projectName=todo-backend \
-        //                 -Dsonar.sources=. \
-        //                 -Dsonar.token=${env.SONAR_AUTH_TOKEN}
-        //             """
-        //             }
-        //         }
-        //     }
-        // }
-        // stage('Quality Gate') {
-        //     steps {
-        //         timeout(time: 10, unit: 'MINUTES') {
-        //             waitForQualityGate abortPipeline: true
-        //         }
-        //     }
-        // }
+        stage('SonarQube Analysis') {
+            steps {
+                    script {
+                    def scannerHome = tool 'sonarscanner'
+                    withSonarQubeEnv('sonarqube') {                   
+                    sh """
+                        ${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.projectKey=todo-backend \
+                        -Dsonar.projectName=todo-backend \
+                        -Dsonar.sources=. \
+                        -Dsonar.token=${env.SONAR_AUTH_TOKEN}
+                    """
+                    }
+                }
+            }
+        }
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
         stage('Trivy File Scan') {
             steps {
                 script {
@@ -194,20 +183,14 @@ def updateGitOps(String environment, String service, String imageTag) {
 
             cd '${GITOPS_DIR}'
 
-            git config user.email "jenkins@myorg.com"
-            git config user.name "Jenkins CI"
+            git config user.email "admin@email.com"
+            git config user.name "admin CI"
 
             echo "Current directory: \$(pwd)"
             cd 'overlays/${environment}/${service}'
-
-            
             sed -i "/name: noakhali\\/${service}/,/newTag:/ s/newTag:.*/newTag: ${imageTag}/" kustomization.yaml
-
-
             cd ../../..
-
             git add 'overlays/${environment}/${service}/kustomization.yaml'
-
             if git diff --cached --quiet; then
               echo "No changes to commit"
             else
