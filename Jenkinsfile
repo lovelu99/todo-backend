@@ -24,16 +24,25 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                sh 'echo "SonarQube Analysis"'
-
+                    script {
+                    def scannerHome = tool 'sonarscanner'
+                    withSonarQubeEnv('sonarqube') {                   
+                    sh """
+                        ${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.projectKey=todo-backend \
+                        -Dsonar.projectName=todo-backend \
+                        -Dsonar.sources=. \
+                        -Dsonar.token=${env.SONAR_AUTH_TOKEN}
+                    """
+                    }
+                }
             }
-
-
         }
-        stage('Quality Gate'){
+        stage('Quality Gate') {
             steps {
-                sh 'echo " Quality Gate: Checking for code quality issues and vulnerabilities"'
-
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
 
@@ -75,7 +84,7 @@ pipeline {
             when {branch 'staging'}
             steps {
                 script {
-                        //promotSameImagesDockerHub('staging')
+                        
                         def devImageTag = getCurrentImageTag('dev','todo-backend')
                         promotSameImagesDockerHub('staging', devImageTag)
                         updateGitOps('staging','todo-backend', devImageTag)
@@ -85,7 +94,8 @@ pipeline {
         stage('Deploy to Prod') {
             when {branch 'main'}
             steps {
-                //promotSameImagesDockerHub('prod')
+                
+                input message: 'Deploy to production?', ok: 'Deploy'
                 script {
                 def devImageTag = getCurrentImageTag('staging','todo-backend')
                 promotSameImagesDockerHub('prod', devImageTag)
