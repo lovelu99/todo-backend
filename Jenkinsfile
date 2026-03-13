@@ -24,16 +24,25 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                sh 'echo "SonarQube Analysis"'
-
+                    script {
+                    def scannerHome = tool 'sonarscanner'
+                    withSonarQubeEnv('sonarqube') {                   
+                    sh """
+                        ${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.projectKey=todo-backend \
+                        -Dsonar.projectName=todo-backend \
+                        -Dsonar.sources=. \
+                        -Dsonar.token=${env.SONAR_AUTH_TOKEN}
+                    """
+                    }
+                }
             }
-
-
         }
-        stage('Quality Gate'){
+        stage('Quality Gate') {
             steps {
-                sh 'echo " Quality Gate: Checking for code quality issues and vulnerabilities"'
-
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
 
