@@ -84,7 +84,7 @@ pipeline {
             when {branch 'staging'}
             steps {
                 script {
-                        //promotSameImagesDockerHub('staging')
+                        
                         def devImageTag = getCurrentImageTag('dev','todo-backend')
                         promotSameImagesDockerHub('staging', devImageTag)
                         updateGitOps('staging','todo-backend', devImageTag)
@@ -94,7 +94,8 @@ pipeline {
         stage('Deploy to Prod') {
             when {branch 'main'}
             steps {
-                //promotSameImagesDockerHub('prod')
+                
+                input message: 'Deploy to production?', ok: 'Deploy'
                 script {
                 def devImageTag = getCurrentImageTag('staging','todo-backend')
                 promotSameImagesDockerHub('prod', devImageTag)
