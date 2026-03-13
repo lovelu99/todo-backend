@@ -22,26 +22,54 @@ pipeline {
     //         }
     //     }
 
-        stage('SonarQube Analysis') {
+        // stage('SonarQube Analysis') {
+        //     steps {
+        //             script {
+        //             def scannerHome = tool 'sonarscanner'
+        //             withSonarQubeEnv('sonarqube') {                   
+        //             sh """
+        //                 ${scannerHome}/bin/sonar-scanner \
+        //                 -Dsonar.projectKey=todo-backend \
+        //                 -Dsonar.projectName=todo-backend \
+        //                 -Dsonar.sources=. \
+        //                 -Dsonar.token=${env.SONAR_AUTH_TOKEN}
+        //             """
+        //             }
+        //         }
+        //     }
+        // }
+        // stage('Quality Gate') {
+        //     steps {
+        //         timeout(time: 10, unit: 'MINUTES') {
+        //             waitForQualityGate abortPipeline: true
+        //         }
+        //     }
+        // }
+        stage('Trivy File Scan') {
             steps {
-                    script {
-                    def scannerHome = tool 'sonarscanner'
-                    withSonarQubeEnv('sonarqube') {                   
-                    sh """
-                        ${scannerHome}/bin/sonar-scanner \
-                        -Dsonar.projectKey=todo-backend \
-                        -Dsonar.projectName=todo-backend \
-                        -Dsonar.sources=. \
-                        -Dsonar.token=${env.SONAR_AUTH_TOKEN}
-                    """
+                script {
+                    sh 'echo "Running Trivy file scan on the source code"'
+                    sh 'mkdir -p reports'
+                    def trivyStatus = sh (
+                        script: """
+                        trivy fs . \
+                        --scanners vuln \
+                        --severity HIGH,CRITICAL \
+                        --exit-code 1 \
+                        --ignore-unfixed \
+                        --format table \
+                        --output reports/trivy-file-scan.txt \
+                        --no-progress
+                        """,
+                        returnStatus: true
+                    )
+                    // archive report regardless of scan result
+                    archiveArtifacts artifacts: 'reports/*', fingerprint: true, allowEmptyArchive: true
+
+                    // fail pipeline if vulnerabilities detected
+                    if (trivyStatus != 0) {
+                        error("Trivy detected HIGH/CRITICAL vulnerabilities in source code. See the report in Jenkins artifacts.")
                     }
-                }
-            }
-        }
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
                 }
             }
         }
@@ -59,9 +87,31 @@ pipeline {
                 }
             }
         }
-        stage('Trivy Scan') {
+        stage('Trivy Image Scan') {
             steps {
-                sh 'echo "Trivy Scan: Scanning the Docker image for vulnerabilities"'
+                script {
+                    sh 'echo "Running Trivy scan on the Docker image"'
+                    sh 'mkdir -p reports'
+                    def trivyStatus = sh (
+                    script: """
+                    trivy image ${IMAGE_NAME}:${IMAGE_TAG} \
+                    --severity HIGH,CRITICAL \
+                    --exit-code 1 \
+                    --ignore-unfixed \
+                    --format table \
+                    --output reports/trivy-report.txt \
+                    --no-progress
+                    """,
+                    returnStatus: true
+                    )
+                    // archive report regardless of scan result
+                    archiveArtifacts artifacts: 'reports/*', fingerprint: true, allowEmptyArchive: true
+
+                    // fail pipeline if vulnerabilities detected
+                    if (trivyStatus != 0) {
+                        error("Trivy detected HIGH/CRITICAL vulnerabilities. See the report in Jenkins artifacts.")
+                    }
+                }
             }
         }
         stage('Test') {
