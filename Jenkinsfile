@@ -10,17 +10,6 @@ pipeline {
     }
      stages {
 
-    //     stage('Set Variables'){
-    //         steps {
-    //             script {
-    //                 env.IMAGE_TAG  = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
-    //                 // env.sourceSHA = sh(
-    //                 //         script: 'git rev-parse --short=7 HEAD^2 2>/dev/null || git rev-parse --short=7 HEAD',
-    //                 //         returnStdout: true
-    //                 //     ).trim()
-    //             }
-    //         }
-    //     }
 
         stage('SonarQube Analysis') {
             steps {
@@ -45,6 +34,34 @@ pipeline {
                 }
             }
         }
+        stage('Trivy File Scan') {
+            steps {
+                script {
+                    sh 'echo "Running Trivy file scan on the source code"'
+                    sh 'mkdir -p reports'
+                    def trivyStatus = sh (
+                        script: """
+                        trivy fs . \
+                        --scanners vuln \
+                        --severity HIGH,CRITICAL \
+                        --exit-code 1 \
+                        --ignore-unfixed \
+                        --format table \
+                        --output reports/trivy-file-scan.txt \
+                        --no-progress
+                        """,
+                        returnStatus: true
+                    )
+                    // archive report regardless of scan result
+                    archiveArtifacts artifacts: 'reports/*', fingerprint: true, allowEmptyArchive: true
+
+                    // fail pipeline if vulnerabilities detected
+                    if (trivyStatus != 0) {
+                        error("Trivy detected HIGH/CRITICAL vulnerabilities in source code. See the report in Jenkins artifacts.")
+                    }
+                }
+            }
+        }
 
         stage('Build and Push Docker Image'){
             when { branch 'develop'}
@@ -59,9 +76,31 @@ pipeline {
                 }
             }
         }
-        stage('Trivy Scan') {
+        stage('Trivy Image Scan') {
             steps {
-                sh 'echo "Trivy Scan: Scanning the Docker image for vulnerabilities"'
+                script {
+                    sh 'echo "Running Trivy scan on the Docker image"'
+                    sh 'mkdir -p reports'
+                    def trivyStatus = sh (
+                    script: """
+                    trivy image ${IMAGE_NAME}:${IMAGE_TAG} \
+                    --severity HIGH,CRITICAL \
+                    --exit-code 1 \
+                    --ignore-unfixed \
+                    --format table \
+                    --output reports/trivy-report.txt \
+                    --no-progress
+                    """,
+                    returnStatus: true
+                    )
+                    // archive report regardless of scan result
+                    archiveArtifacts artifacts: 'reports/*', fingerprint: true, allowEmptyArchive: true
+
+                    // fail pipeline if vulnerabilities detected
+                    if (trivyStatus != 0) {
+                        error("Trivy detected HIGH/CRITICAL vulnerabilities. See the report in Jenkins artifacts.")
+                    }
+                }
             }
         }
         stage('Test') {
@@ -144,20 +183,14 @@ def updateGitOps(String environment, String service, String imageTag) {
 
             cd '${GITOPS_DIR}'
 
-            git config user.email "jenkins@myorg.com"
-            git config user.name "Jenkins CI"
+            git config user.email "admin@email.com"
+            git config user.name "admin CI"
 
             echo "Current directory: \$(pwd)"
             cd 'overlays/${environment}/${service}'
-
-            
             sed -i "/name: noakhali\\/${service}/,/newTag:/ s/newTag:.*/newTag: ${imageTag}/" kustomization.yaml
-
-
             cd ../../..
-
             git add 'overlays/${environment}/${service}/kustomization.yaml'
-
             if git diff --cached --quiet; then
               echo "No changes to commit"
             else
